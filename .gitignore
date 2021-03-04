@@ -1,32 +1,37 @@
 # Prerequisites
-*.d
+CameraWatcher/*.d
 
 # Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+CameraWatcher/*.slo
+CameraWatcher/*.lo
+CameraWatcher/*.o
+CameraWatcher/*.obj
 
 # Precompiled Headers
-*.gch
-*.pch
+CameraWatcher/*.gch
+CameraWatcher/*.pch
 
 # Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+CameraWatcher/*.so
+CameraWatcher/*.dylib
+CameraWatcher/*.dll
 
 # Fortran module files
-*.mod
-*.smod
+CameraWatcher/*.mod
+CameraWatcher/*.smod
 
 # Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+CameraWatcher/*.lai
+CameraWatcher/*.la
+CameraWatcher/*.a
+CameraWatcher/*.lib
 
 # Executables
-*.exe
-*.out
-*.app
+CameraWatcher/*.exe
+CameraWatcher/*.out
+CameraWatcher/*.app
+
+# Visual Studio 2019
+CameraWatcher/.vs/*
+CameraWatcher/x64/*
+CameraWatcher/CameraWatcher/x64/*
