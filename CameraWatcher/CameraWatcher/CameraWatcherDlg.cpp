@@ -7,6 +7,7 @@
 #include "CameraWatcher.h"
 #include "CameraWatcherDlg.h"
 #include "afxdialogex.h"
+#include <uuids.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -17,10 +18,17 @@
 typedef IID CLSID;
 #endif // CLSID_DEFINED
 
+#define SAFE_RELEASE(x) { if (x) x->Release(); x = NULL; }
 #define MIDL_DEFINE_GUID(type,name,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8) \
         const type name = {l,w1,w2,{b1,b2,b3,b4,b5,b6,b7,b8}}
 
 MIDL_DEFINE_GUID(CLSID, CLSID_VCamRenderer, 0x3D2F839E, 0x1186, 0x4FCE, 0xB7, 0x72, 0xB6, 0x1F, 0xAE, 0x1A, 0xCE, 0xD7);
+
+#define PROP_GUID 0xcb043957, 0x7b35, 0x456e, 0x9b, 0x61, 0x55, 0x13, 0x93, 0xf, 0x4d, 0x8e
+#define PROP_DATA_ID 0
+#define PROP_STATE_ID 1
+
+const GUID GUID_PROP_CLASS = { PROP_GUID };
 
 // CAboutDlg dialog used for App About
 
@@ -68,6 +76,8 @@ CCameraWatcherDlg::CCameraWatcherDlg(CWnd* pParent /*=nullptr*/)
 	m_vcam = nullptr;
 	m_notification_monitor = FALSE;
 	m_thread = nullptr;
+
+	m_propertySet = nullptr;
 }
 
 void CCameraWatcherDlg::DoDataExchange(CDataExchange* pDX)
@@ -116,7 +126,8 @@ BOOL CCameraWatcherDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	SetupCameras();
+	//SetupCameras();
+	SetupCamerasForAvshws();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -172,13 +183,13 @@ HCURSOR CCameraWatcherDlg::OnQueryDragIcon()
 
 void CCameraWatcherDlg::OnClose()
 {
-	CleanCameras();
+	CleanCamerasForAvshws();
 	CDialogEx::OnClose();
 }
 
 void CCameraWatcherDlg::OnDestroy()
 {
-	CleanCameras();
+	CleanCamerasForAvshws();
 	CDialogEx::OnDestroy();
 }
 
@@ -210,6 +221,135 @@ HRESULT CCameraWatcherDlg::SetupCameras()
 	return hr;
 }
 
+HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
+{
+	HRESULT hr = S_OK;
+	IBaseFilter* pSrc = NULL;
+	IMoniker* pMoniker = NULL;
+	ICreateDevEnum* pDevEnum = NULL;
+	IEnumMoniker* pClassEnum = NULL;
+
+	hr = ::CoInitialize(nullptr);
+
+	// Create the system device enumerator
+	if (FAILED(hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC,
+		IID_ICreateDevEnum, (void**)&pDevEnum))) {
+		MessageBox(_T("Couldn't create system enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	// Create an enumerator for the video capture devices
+	if (SUCCEEDED(hr))
+	{
+		hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pClassEnum, 0);
+		if (FAILED(hr))
+		{
+			MessageBox(_T("Couldn't create class enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return hr;
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// If there are no enumerators for the requested type, then 
+		// CreateClassEnumerator will succeed, but pClassEnum will be NULL.
+		if (pClassEnum == NULL)
+		{
+			MessageBox(_T("No video capture device was detected!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return hr;
+		}
+	}
+
+	// Use the devnum'th video capture device on the device list.
+	// Note that if the Next() call succeeds but there are no monikers,
+	// it will return S_FALSE (which is not a failure).  Therefore, we
+	// check that the return code is S_OK instead of using SUCCEEDED() macro.
+
+	if (SUCCEEDED(hr))
+	{
+		pClassEnum->Skip(2);
+		hr = pClassEnum->Next(1, &pMoniker, NULL);
+		if (hr == S_FALSE)
+		{
+			MessageBox(_T("Unable to access video capture device!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return hr;
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// Bind Moniker to a filter object
+		hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&pSrc);
+		if (FAILED(hr))
+		{
+			MessageBox(_T("Couldn't bind moniker to filter object!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return hr;
+		}
+
+		VARIANT var;
+		IPropertyBag* props;
+		HRESULT h2;
+		h2 = pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&props);
+		if (SUCCEEDED(h2)) {
+			VariantInit(&var);
+			var.vt = VT_BSTR;
+			h2 = props->Read(L"FriendlyName", &var, 0);
+			if (SUCCEEDED(h2))
+				printf("%d:%ls\n", 0, var.bstrVal);
+			SysFreeString(var.bstrVal);
+			VariantClear(&var);
+		}
+		SAFE_RELEASE(props);
+	}
+
+	// Copy the found filter pointer to the output parameter.
+	if (SUCCEEDED(hr))
+	{
+		m_vcam_renderer = pSrc;
+		m_vcam_renderer->AddRef();
+	}
+
+	SAFE_RELEASE(pSrc);
+	SAFE_RELEASE(pMoniker);
+	SAFE_RELEASE(pDevEnum);
+	SAFE_RELEASE(pClassEnum);
+
+	// get [IVCamRender] interface from VCam Renderer filter
+	if (FAILED(hr = m_vcam_renderer->QueryInterface(IID_PPV_ARGS(&m_propertySet)))) {
+		MessageBox(_T("Avshws driver not installed!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	DWORD supportFlags = 0;
+	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_STATE_ID, &supportFlags);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("The relevant property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	if (supportFlags & KSPROPERTY_SUPPORT_SET != KSPROPERTY_SUPPORT_SET)
+	{
+		MessageBox(_T("The relevant property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	DWORD state = 0;
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("It can't get the state of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	// create a thread to detect VCam usage.
+	if (m_propertySet) {
+		DetectVCamUsageForAvshws();
+	}
+
+	return hr;
+}
+
 //
 // When dialog quit, release camera resource
 //
@@ -221,6 +361,14 @@ void CCameraWatcherDlg::CleanCameras()
 
 	if (m_vcam_renderer) m_vcam_renderer->Release(), m_vcam_renderer = nullptr;
 	if (m_vcam) m_vcam->Release(), m_vcam = nullptr;
+}
+
+void CCameraWatcherDlg::CleanCamerasForAvshws()
+{
+	// set an Empty Event Handle for VCam usage 
+	m_notification_monitor = FALSE;
+	SAFE_RELEASE(m_vcam_renderer);
+	SAFE_RELEASE(m_propertySet);
 }
 
 void CCameraWatcherDlg::DetectVCamUsage()
@@ -272,6 +420,56 @@ void CCameraWatcherDlg::ShowUsingInfo()
 	CString tt = _T("No application is ");
 	if (connected_num == 1) tt = _T("1 application is ");
 	else if (connected_num > 1) tt.Format(_T("%d applications are "), connected_num);
+
+	CString message = tt + _T("using our camera.");
+	SetDlgItemText(IDC_STATIC_VCAM_USAGE, message);
+}
+
+void CCameraWatcherDlg::DetectVCamUsageForAvshws()
+{
+	ShowUsingInfoForAvshws();
+
+	// create a thread to detect vcam usage
+	m_notification_monitor = TRUE;
+	m_thread = CreateThread(nullptr, 0, notification_usage__proc_avshws, this, 0, nullptr);
+}
+
+DWORD WINAPI CCameraWatcherDlg::notification_usage__proc_avshws(LPVOID data)
+{
+	CCameraWatcherDlg* impl = reinterpret_cast<CCameraWatcherDlg*>(data);
+	impl->usage_proc_avshws();
+	return 0;
+}
+
+void CCameraWatcherDlg::usage_proc_avshws()
+{
+	DWORD old_state = 0;
+	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &old_state, sizeof(DWORD), NULL);
+
+	DWORD current_state = old_state;
+	while (m_notification_monitor) {
+		::Sleep(10);
+		m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &current_state, sizeof(DWORD), NULL);
+
+		// update using information
+		if (current_state != old_state) {
+			ShowUsingInfoForAvshws();
+			old_state = current_state;
+		}
+	}
+}
+
+void CCameraWatcherDlg::ShowUsingInfoForAvshws()
+{
+	if (m_propertySet == nullptr)
+		return;
+
+	DWORD state = HardwareStopped;
+	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
+
+	CString tt = _T("No application is ");
+	if (state == HardwareRunning) tt = _T("An application (running) is ");
+	else if (state == HardwarePaused) tt = _T("An application (pause) is ");
 
 	CString message = tt + _T("using our camera.");
 	SetDlgItemText(IDC_STATIC_VCAM_USAGE, message);
