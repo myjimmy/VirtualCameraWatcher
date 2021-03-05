@@ -8,6 +8,20 @@
 #pragma once
 #pragma comment(lib, "Strmiids.lib")
 
+/*************************************************
+
+	Enums / Typedefs
+
+*************************************************/
+
+typedef enum _HARDWARE_STATE {
+
+	HardwareStopped = 0,
+	HardwarePaused,
+	HardwareRunning
+
+} HARDWARE_STATE, * PHARDWARE_STATE;
+
 struct IVCamRenderer;
 
 // CCameraWatcherDlg dialog
@@ -29,6 +43,15 @@ public:
 	static DWORD WINAPI notification_usage__proc(__inout LPVOID pv);
 	void usage_proc();
 	void ShowUsingInfo();
+
+	HRESULT SetupCamerasForAvshws();
+	void CleanCamerasForAvshws();
+
+	void DetectVCamUsageForAvshws();
+	static DWORD WINAPI notification_usage__proc_avshws(__inout LPVOID pv);
+	void usage_proc_avshws();
+	void ShowUsingInfoForAvshws();
+
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
@@ -53,4 +76,6 @@ protected:
 	IVCamRenderer* m_vcam;
 	LONG m_notification_monitor;
 	HANDLE m_thread;
+
+	IKsPropertySet* m_propertySet;
 };
