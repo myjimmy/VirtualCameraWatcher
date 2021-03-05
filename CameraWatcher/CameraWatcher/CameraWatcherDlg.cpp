@@ -13,6 +13,8 @@
 #define new DEBUG_NEW
 #endif
 
+#define VCAM_NAME L"Virtual Camera"
+
 #ifndef CLSID_DEFINED
 #define CLSID_DEFINED
 typedef IID CLSID;
@@ -130,8 +132,6 @@ BOOL CCameraWatcherDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	//SetupCameraForVCam();
-	//SetupCamerasForAvshws();
 	InitCameraList();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -188,13 +188,13 @@ HCURSOR CCameraWatcherDlg::OnQueryDragIcon()
 
 void CCameraWatcherDlg::OnClose()
 {
-	CleanCamerasForAvshws();
+	CleanCamera();
 	CDialogEx::OnClose();
 }
 
 void CCameraWatcherDlg::OnDestroy()
 {
-	CleanCamerasForAvshws();
+	CleanCamera();
 	CDialogEx::OnDestroy();
 }
 
@@ -289,6 +289,40 @@ void CCameraWatcherDlg::OnBnClickedSetButton()
 
 	CString strCameraName;
 	m_CameraList.GetWindowText(strCameraName);
+
+	CleanCamera();
+
+	m_strActiveCameraName = strCameraName;
+	SetupCamera(index);
+}
+
+HRESULT CCameraWatcherDlg::SetupCamera(int camera_index)
+{
+	HRESULT hr = S_OK;
+	if (m_strActiveCameraName.IsEmpty())
+		return hr;
+
+	if (m_strActiveCameraName == VCAM_NAME) {
+		hr = SetupCameraForVCam();
+	}
+	else {
+		hr = SetupCamerasForAvshws(camera_index);
+	}
+
+	return hr;
+}
+
+void CCameraWatcherDlg::CleanCamera()
+{
+	if (m_strActiveCameraName.IsEmpty())
+		return;
+
+	if (m_strActiveCameraName == VCAM_NAME) {
+		CleanCameraForVCam();
+	}
+	else {
+		CleanCamerasForAvshws();
+	}
 }
 
 //
@@ -319,7 +353,7 @@ HRESULT CCameraWatcherDlg::SetupCameraForVCam()
 	return hr;
 }
 
-HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
+HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 {
 	HRESULT hr = S_OK;
 	IBaseFilter* pSrc = NULL;
@@ -365,7 +399,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
 
 	if (SUCCEEDED(hr))
 	{
-		pClassEnum->Skip(2);
+		pClassEnum->Skip(camera_index);
 		hr = pClassEnum->Next(1, &pMoniker, NULL);
 		if (hr == S_FALSE)
 		{

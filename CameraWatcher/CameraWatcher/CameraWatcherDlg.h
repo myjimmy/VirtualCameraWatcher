@@ -38,6 +38,9 @@ public:
 
 	void InitCameraList();
 
+	HRESULT SetupCamera(int camera_index);
+	void CleanCamera();
+
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
@@ -67,7 +70,7 @@ protected:
 	void ShowUsingInfoForVCam();
 
 	/* Other Cameras based on avshws */
-	HRESULT SetupCamerasForAvshws();
+	HRESULT SetupCamerasForAvshws(int camera_index);
 	void CleanCamerasForAvshws();
 
 	void DetectCameraUsageForAvshws();
