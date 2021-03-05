@@ -36,6 +36,8 @@ public:
 	enum { IDD = IDD_CAMERAWATCHER_DIALOG };
 #endif
 
+	void InitCameraList();
+
 	HRESULT SetupCameras();
 	void CleanCameras();
 
@@ -52,7 +54,6 @@ public:
 	void usage_proc_avshws();
 	void ShowUsingInfoForAvshws();
 
-
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
@@ -68,9 +69,13 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnClose();
 	afx_msg void OnDestroy();
+	afx_msg void OnBnClickedSetButton();
 	DECLARE_MESSAGE_MAP()
 
 // Members
+public:
+	CComboBox m_CameraList;
+
 protected:
 	IBaseFilter* m_vcam_renderer;
 	IVCamRenderer* m_vcam;

@@ -83,6 +83,7 @@ CCameraWatcherDlg::CCameraWatcherDlg(CWnd* pParent /*=nullptr*/)
 void CCameraWatcherDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_CAMERA_COMBO, m_CameraList);
 }
 
 BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
@@ -91,6 +92,7 @@ BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CLOSE()
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDC_SET_BUTTON, &CCameraWatcherDlg::OnBnClickedSetButton)
 END_MESSAGE_MAP()
 
 
@@ -127,7 +129,8 @@ BOOL CCameraWatcherDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 	//SetupCameras();
-	SetupCamerasForAvshws();
+	//SetupCamerasForAvshws();
+	InitCameraList();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -191,6 +194,96 @@ void CCameraWatcherDlg::OnDestroy()
 {
 	CleanCamerasForAvshws();
 	CDialogEx::OnDestroy();
+}
+
+void CCameraWatcherDlg::InitCameraList()
+{
+	HRESULT hr = S_OK;
+	IBaseFilter* pSrc = NULL;
+	IMoniker* pMoniker = NULL;
+	ICreateDevEnum* pDevEnum = NULL;
+	IEnumMoniker* pClassEnum = NULL;
+
+	hr = ::CoInitialize(nullptr);
+
+	// Create the system device enumerator
+	if (FAILED(hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC,
+		IID_ICreateDevEnum, (void**)&pDevEnum))) {
+		MessageBox(_T("Couldn't create system enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	// Create an enumerator for the video capture devices
+	if (SUCCEEDED(hr))
+	{
+		hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pClassEnum, 0);
+		if (FAILED(hr))
+		{
+			MessageBox(_T("Couldn't create class enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return;
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// If there are no enumerators for the requested type, then 
+		// CreateClassEnumerator will succeed, but pClassEnum will be NULL.
+		if (pClassEnum == NULL)
+		{
+			MessageBox(_T("No video capture device was detected!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return;
+		}
+	}
+
+	// Use the devnum'th video capture device on the device list.
+	// Note that if the Next() call succeeds but there are no monikers,
+	// it will return S_FALSE (which is not a failure).  Therefore, we
+	// check that the return code is S_OK instead of using SUCCEEDED() macro.
+
+	if (SUCCEEDED(hr))
+	{
+		while (pClassEnum->Next(1, &pMoniker, NULL) == S_OK) {
+			// Bind Moniker to a filter object
+			//hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&pSrc);
+			//if (FAILED(hr))
+			//	continue;
+			VARIANT var;
+			IPropertyBag* props;
+			HRESULT h2;
+			CString strText;
+			h2 = pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&props);
+			if (SUCCEEDED(h2)) {
+				VariantInit(&var);
+				var.vt = VT_BSTR;
+				h2 = props->Read(L"FriendlyName", &var, 0);
+				if (SUCCEEDED(h2)) {
+					printf("%d:%ls\n", 0, var.bstrVal);
+					strText.Format(L"%ls", var.bstrVal);
+				}
+				SysFreeString(var.bstrVal);
+				VariantClear(&var);
+			}
+			SAFE_RELEASE(props);
+
+			if (!strText.IsEmpty()) {
+				m_CameraList.AddString(strText);
+			}
+		}
+	}
+
+	SAFE_RELEASE(pSrc);
+	SAFE_RELEASE(pMoniker);
+	SAFE_RELEASE(pDevEnum);
+	SAFE_RELEASE(pClassEnum);
+}
+
+void CCameraWatcherDlg::OnBnClickedSetButton()
+{
+	int index = m_CameraList.GetCurSel();
+	if (index == -1) {
+		MessageBox(_T("Please select any camera from list."), _T("Warning"), MB_OK | MB_ICONWARNING);
+		return;
+	}
 }
 
 //
