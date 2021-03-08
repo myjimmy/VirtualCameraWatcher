@@ -27,8 +27,9 @@ typedef IID CLSID;
 MIDL_DEFINE_GUID(CLSID, CLSID_VCamRenderer, 0x3D2F839E, 0x1186, 0x4FCE, 0xB7, 0x72, 0xB6, 0x1F, 0xAE, 0x1A, 0xCE, 0xD7);
 
 #define PROP_GUID 0xcb043957, 0x7b35, 0x456e, 0x9b, 0x61, 0x55, 0x13, 0x93, 0xf, 0x4d, 0x8e
-#define PROP_DATA_ID 0
-#define PROP_STATE_ID 1
+#define PROP_DATA_ID		0
+#define PROP_STATE_ID		1
+#define PROP_PROCESS_ID		2
 
 const GUID GUID_PROP_CLASS = { PROP_GUID };
 
@@ -452,17 +453,18 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		return hr;
 	}
 
+	/* Check the State property */
 	DWORD supportFlags = 0;
 	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_STATE_ID, &supportFlags);
 	if (!SUCCEEDED(hr))
 	{
-		MessageBox(_T("The relevant property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("The STATE property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
 	{
-		MessageBox(_T("The relevant property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("The STATE property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -470,7 +472,30 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
 	if (!SUCCEEDED(hr))
 	{
-		MessageBox(_T("It can't get the state of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("It can't get the STATE property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	/* Check the Process property */
+	supportFlags = 0;
+	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_PROCESS_ID, &supportFlags);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("The PROCESS property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
+	{
+		MessageBox(_T("The PROCESS property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	DWORD process = 0;
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &process, sizeof(DWORD), NULL);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("It can't get the PROCESS property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
