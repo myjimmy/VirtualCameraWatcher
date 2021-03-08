@@ -603,10 +603,20 @@ void CCameraWatcherDlg::usage_proc_avshws()
 	DWORD old_state = 0;
 	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &old_state, sizeof(DWORD), NULL);
 
+	HRESULT hr = S_OK;
 	DWORD current_state = old_state;
 	while (m_notification_monitor) {
 		::Sleep(10);
-		m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &current_state, sizeof(DWORD), NULL);
+
+		if (m_propertySet == NULL) {
+			break;
+		}
+
+		hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &current_state, sizeof(DWORD), NULL);
+
+		if (!SUCCEEDED(hr)) {
+			break;
+		}
 
 		// update using information
 		if (current_state != old_state) {
