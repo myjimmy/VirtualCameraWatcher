@@ -32,6 +32,7 @@ CameraWatcher/*.out
 CameraWatcher/*.app
 
 # Visual Studio 2019
+CameraWatcher/CameraWatcher/*.aps
 CameraWatcher/.vs/*
 CameraWatcher/x64/*
 CameraWatcher/CameraWatcher/x64/*

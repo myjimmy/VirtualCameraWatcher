@@ -13,6 +13,8 @@
 #define new DEBUG_NEW
 #endif
 
+#define VCAM_NAME L"Virtual Camera"
+
 #ifndef CLSID_DEFINED
 #define CLSID_DEFINED
 typedef IID CLSID;
@@ -78,11 +80,14 @@ CCameraWatcherDlg::CCameraWatcherDlg(CWnd* pParent /*=nullptr*/)
 	m_thread = nullptr;
 
 	m_propertySet = nullptr;
+
+	m_strActiveCameraName = L"";
 }
 
 void CCameraWatcherDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_CAMERA_COMBO, m_CameraList);
 }
 
 BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
@@ -91,6 +96,7 @@ BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CLOSE()
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDC_SET_BUTTON, &CCameraWatcherDlg::OnBnClickedSetButton)
 END_MESSAGE_MAP()
 
 
@@ -126,8 +132,7 @@ BOOL CCameraWatcherDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	//SetupCameras();
-	SetupCamerasForAvshws();
+	InitCameraList();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -183,20 +188,147 @@ HCURSOR CCameraWatcherDlg::OnQueryDragIcon()
 
 void CCameraWatcherDlg::OnClose()
 {
-	CleanCamerasForAvshws();
+	CleanCamera();
 	CDialogEx::OnClose();
 }
 
 void CCameraWatcherDlg::OnDestroy()
 {
-	CleanCamerasForAvshws();
+	CleanCamera();
 	CDialogEx::OnDestroy();
+}
+
+void CCameraWatcherDlg::InitCameraList()
+{
+	HRESULT hr = S_OK;
+	IBaseFilter* pSrc = NULL;
+	IMoniker* pMoniker = NULL;
+	ICreateDevEnum* pDevEnum = NULL;
+	IEnumMoniker* pClassEnum = NULL;
+
+	hr = ::CoInitialize(nullptr);
+
+	// Create the system device enumerator
+	if (FAILED(hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC,
+		IID_ICreateDevEnum, (void**)&pDevEnum))) {
+		MessageBox(_T("Couldn't create system enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	// Create an enumerator for the video capture devices
+	if (SUCCEEDED(hr))
+	{
+		hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pClassEnum, 0);
+		if (FAILED(hr))
+		{
+			MessageBox(_T("Couldn't create class enumerator!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return;
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// If there are no enumerators for the requested type, then 
+		// CreateClassEnumerator will succeed, but pClassEnum will be NULL.
+		if (pClassEnum == NULL)
+		{
+			MessageBox(_T("No video capture device was detected!"), _T("Error"), MB_OK | MB_ICONERROR);
+			return;
+		}
+	}
+
+	// Use the devnum'th video capture device on the device list.
+	// Note that if the Next() call succeeds but there are no monikers,
+	// it will return S_FALSE (which is not a failure).  Therefore, we
+	// check that the return code is S_OK instead of using SUCCEEDED() macro.
+
+	if (SUCCEEDED(hr))
+	{
+		while (pClassEnum->Next(1, &pMoniker, NULL) == S_OK) {
+			// Bind Moniker to a filter object
+			//hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&pSrc);
+			//if (FAILED(hr))
+			//	continue;
+			VARIANT var;
+			IPropertyBag* props;
+			HRESULT h2;
+			CString strText;
+			h2 = pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&props);
+			if (SUCCEEDED(h2)) {
+				VariantInit(&var);
+				var.vt = VT_BSTR;
+				h2 = props->Read(L"FriendlyName", &var, 0);
+				if (SUCCEEDED(h2)) {
+					printf("%d:%ls\n", 0, var.bstrVal);
+					strText.Format(L"%ls", var.bstrVal);
+				}
+				SysFreeString(var.bstrVal);
+				VariantClear(&var);
+			}
+			SAFE_RELEASE(props);
+
+			if (!strText.IsEmpty()) {
+				m_CameraList.AddString(strText);
+			}
+		}
+	}
+
+	SAFE_RELEASE(pSrc);
+	SAFE_RELEASE(pMoniker);
+	SAFE_RELEASE(pDevEnum);
+	SAFE_RELEASE(pClassEnum);
+}
+
+void CCameraWatcherDlg::OnBnClickedSetButton()
+{
+	int index = m_CameraList.GetCurSel();
+	if (index == -1) {
+		MessageBox(_T("Please select any camera from list."), _T("Warning"), MB_OK | MB_ICONWARNING);
+		return;
+	}
+
+	CString strCameraName;
+	m_CameraList.GetWindowText(strCameraName);
+
+	CleanCamera();
+
+	m_strActiveCameraName = strCameraName;
+	SetupCamera(index);
+}
+
+HRESULT CCameraWatcherDlg::SetupCamera(int camera_index)
+{
+	HRESULT hr = S_OK;
+	if (m_strActiveCameraName.IsEmpty())
+		return hr;
+
+	if (m_strActiveCameraName == VCAM_NAME) {
+		hr = SetupCameraForVCam();
+	}
+	else {
+		hr = SetupCamerasForAvshws(camera_index);
+	}
+
+	return hr;
+}
+
+void CCameraWatcherDlg::CleanCamera()
+{
+	if (m_strActiveCameraName.IsEmpty())
+		return;
+
+	if (m_strActiveCameraName == VCAM_NAME) {
+		CleanCameraForVCam();
+	}
+	else {
+		CleanCamerasForAvshws();
+	}
 }
 
 //
 // Initialize virtual camera
 //
-HRESULT CCameraWatcherDlg::SetupCameras()
+HRESULT CCameraWatcherDlg::SetupCameraForVCam()
 {
 	HRESULT hr = ::CoInitialize(nullptr);
 
@@ -215,13 +347,13 @@ HRESULT CCameraWatcherDlg::SetupCameras()
 
 	// create a thread to detect VCam usage.
 	if (m_vcam) {
-		DetectVCamUsage();
+		DetectCameraUsageForVCam();
 	}
 
 	return hr;
 }
 
-HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
+HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 {
 	HRESULT hr = S_OK;
 	IBaseFilter* pSrc = NULL;
@@ -267,7 +399,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
 
 	if (SUCCEEDED(hr))
 	{
-		pClassEnum->Skip(2);
+		pClassEnum->Skip(camera_index);
 		hr = pClassEnum->Next(1, &pMoniker, NULL);
 		if (hr == S_FALSE)
 		{
@@ -328,7 +460,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
 		return hr;
 	}
 
-	if (supportFlags & KSPROPERTY_SUPPORT_SET != KSPROPERTY_SUPPORT_SET)
+	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
 	{
 		MessageBox(_T("The relevant property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
@@ -344,7 +476,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
 
 	// create a thread to detect VCam usage.
 	if (m_propertySet) {
-		DetectVCamUsageForAvshws();
+		DetectCameraUsageForAvshws();
 	}
 
 	return hr;
@@ -353,7 +485,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws()
 //
 // When dialog quit, release camera resource
 //
-void CCameraWatcherDlg::CleanCameras()
+void CCameraWatcherDlg::CleanCameraForVCam()
 {
 	// set an Empty Event Handle for VCam usage 
 	m_notification_monitor = FALSE;
@@ -371,23 +503,23 @@ void CCameraWatcherDlg::CleanCamerasForAvshws()
 	SAFE_RELEASE(m_propertySet);
 }
 
-void CCameraWatcherDlg::DetectVCamUsage()
+void CCameraWatcherDlg::DetectCameraUsageForVCam()
 {
-	ShowUsingInfo();
+	ShowUsingInfoForVCam();
 
 	// create a thread to detect vcam usage
 	m_notification_monitor = TRUE;
-	m_thread = CreateThread(nullptr, 0, notification_usage__proc, this, 0, nullptr);
+	m_thread = CreateThread(nullptr, 0, notification_usage__proc_vcam, this, 0, nullptr);
 }
 
-DWORD WINAPI CCameraWatcherDlg::notification_usage__proc(LPVOID data)
+DWORD WINAPI CCameraWatcherDlg::notification_usage__proc_vcam(LPVOID data)
 {
 	CCameraWatcherDlg* impl = reinterpret_cast<CCameraWatcherDlg*>(data);
-	impl->usage_proc();
+	impl->usage_proc_vcam();
 	return 0;
 }
 
-void CCameraWatcherDlg::usage_proc()
+void CCameraWatcherDlg::usage_proc_vcam()
 {
 	// create a event and set it to VCam, when VCam usage number is changed, this event will be notified
 	HANDLE h_notification = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -403,11 +535,11 @@ void CCameraWatcherDlg::usage_proc()
 
 		// update using information
 		if (m_notification_monitor)
-			ShowUsingInfo();
+			ShowUsingInfoForVCam();
 	}
 }
 
-void CCameraWatcherDlg::ShowUsingInfo()
+void CCameraWatcherDlg::ShowUsingInfoForVCam()
 {
 	if (m_vcam == nullptr)
 		return;
@@ -425,7 +557,7 @@ void CCameraWatcherDlg::ShowUsingInfo()
 	SetDlgItemText(IDC_STATIC_VCAM_USAGE, message);
 }
 
-void CCameraWatcherDlg::DetectVCamUsageForAvshws()
+void CCameraWatcherDlg::DetectCameraUsageForAvshws()
 {
 	ShowUsingInfoForAvshws();
 

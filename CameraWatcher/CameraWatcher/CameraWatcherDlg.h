@@ -36,22 +36,10 @@ public:
 	enum { IDD = IDD_CAMERAWATCHER_DIALOG };
 #endif
 
-	HRESULT SetupCameras();
-	void CleanCameras();
+	void InitCameraList();
 
-	void DetectVCamUsage();
-	static DWORD WINAPI notification_usage__proc(__inout LPVOID pv);
-	void usage_proc();
-	void ShowUsingInfo();
-
-	HRESULT SetupCamerasForAvshws();
-	void CleanCamerasForAvshws();
-
-	void DetectVCamUsageForAvshws();
-	static DWORD WINAPI notification_usage__proc_avshws(__inout LPVOID pv);
-	void usage_proc_avshws();
-	void ShowUsingInfoForAvshws();
-
+	HRESULT SetupCamera(int camera_index);
+	void CleanCamera();
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
@@ -68,9 +56,33 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnClose();
 	afx_msg void OnDestroy();
+	afx_msg void OnBnClickedSetButton();
 	DECLARE_MESSAGE_MAP()
 
+protected:
+	/* Virtual Camera */
+	HRESULT SetupCameraForVCam();
+	void CleanCameraForVCam();
+
+	void DetectCameraUsageForVCam();
+	static DWORD WINAPI notification_usage__proc_vcam(__inout LPVOID pv);
+	void usage_proc_vcam();
+	void ShowUsingInfoForVCam();
+
+	/* Other Cameras based on avshws */
+	HRESULT SetupCamerasForAvshws(int camera_index);
+	void CleanCamerasForAvshws();
+
+	void DetectCameraUsageForAvshws();
+	static DWORD WINAPI notification_usage__proc_avshws(__inout LPVOID pv);
+	void usage_proc_avshws();
+	void ShowUsingInfoForAvshws();
+
 // Members
+public:
+	CComboBox m_CameraList;
+	CString m_strActiveCameraName;
+
 protected:
 	IBaseFilter* m_vcam_renderer;
 	IVCamRenderer* m_vcam;
