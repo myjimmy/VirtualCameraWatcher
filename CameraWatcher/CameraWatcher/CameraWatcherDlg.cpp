@@ -13,7 +13,7 @@
 #define new DEBUG_NEW
 #endif
 
-#define VCAM_NAME L"Virtual Camera"
+#define VCAM_NAME _T("Virtual Camera")
 
 #ifndef CLSID_DEFINED
 #define CLSID_DEFINED
@@ -82,7 +82,7 @@ CCameraWatcherDlg::CCameraWatcherDlg(CWnd* pParent /*=nullptr*/)
 
 	m_propertySet = nullptr;
 
-	m_strActiveCameraName = L"";
+	m_strActiveCameraName = _T("");
 }
 
 void CCameraWatcherDlg::DoDataExchange(CDataExchange* pDX)
@@ -258,10 +258,10 @@ void CCameraWatcherDlg::InitCameraList()
 			if (SUCCEEDED(h2)) {
 				VariantInit(&var);
 				var.vt = VT_BSTR;
-				h2 = props->Read(L"FriendlyName", &var, 0);
+				h2 = props->Read(_T("FriendlyName"), &var, 0);
 				if (SUCCEEDED(h2)) {
 					printf("%d:%ls\n", 0, var.bstrVal);
-					strText.Format(L"%ls", var.bstrVal);
+					strText.Format(_T("%ls"), var.bstrVal);
 				}
 				SysFreeString(var.bstrVal);
 				VariantClear(&var);
@@ -426,7 +426,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		if (SUCCEEDED(h2)) {
 			VariantInit(&var);
 			var.vt = VT_BSTR;
-			h2 = props->Read(L"FriendlyName", &var, 0);
+			h2 = props->Read(_T("FriendlyName"), &var, 0);
 			if (SUCCEEDED(h2))
 				printf("%d:%ls\n", 0, var.bstrVal);
 			SysFreeString(var.bstrVal);
@@ -491,8 +491,8 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		return hr;
 	}
 
-	DWORD process = 0;
-	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &process, sizeof(DWORD), NULL);
+	DWORD pid = 0;
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &pid, sizeof(DWORD), NULL);
 	if (!SUCCEEDED(hr))
 	{
 		MessageBox(_T("It can't get the PROCESS property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
@@ -631,6 +631,7 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 	if (m_propertySet == nullptr)
 		return;
 
+	// Current state
 	DWORD state = HardwareStopped;
 	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
 
@@ -640,4 +641,12 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 
 	CString message = tt + _T("using our camera.");
 	SetDlgItemText(IDC_STATIC_VCAM_USAGE, message);
+
+	// Process id
+	DWORD pid = 0;
+	m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &pid, sizeof(DWORD), NULL);
+
+	CString strText;
+	strText.Format(_T("%d"), pid);
+	SetDlgItemText(IDC_PROCESS_ID_EDIT, strText);
 }
