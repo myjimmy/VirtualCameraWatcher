@@ -13,7 +13,7 @@
 #define new DEBUG_NEW
 #endif
 
-#define VCAM_NAME L"Virtual Camera"
+#define VCAM_NAME _T("Virtual Camera")
 
 #ifndef CLSID_DEFINED
 #define CLSID_DEFINED
@@ -27,8 +27,9 @@ typedef IID CLSID;
 MIDL_DEFINE_GUID(CLSID, CLSID_VCamRenderer, 0x3D2F839E, 0x1186, 0x4FCE, 0xB7, 0x72, 0xB6, 0x1F, 0xAE, 0x1A, 0xCE, 0xD7);
 
 #define PROP_GUID 0xcb043957, 0x7b35, 0x456e, 0x9b, 0x61, 0x55, 0x13, 0x93, 0xf, 0x4d, 0x8e
-#define PROP_DATA_ID 0
-#define PROP_STATE_ID 1
+#define PROP_DATA_ID		0
+#define PROP_STATE_ID		1
+#define PROP_PROCESS_ID		2
 
 const GUID GUID_PROP_CLASS = { PROP_GUID };
 
@@ -81,7 +82,7 @@ CCameraWatcherDlg::CCameraWatcherDlg(CWnd* pParent /*=nullptr*/)
 
 	m_propertySet = nullptr;
 
-	m_strActiveCameraName = L"";
+	m_strActiveCameraName = _T("");
 }
 
 void CCameraWatcherDlg::DoDataExchange(CDataExchange* pDX)
@@ -257,10 +258,10 @@ void CCameraWatcherDlg::InitCameraList()
 			if (SUCCEEDED(h2)) {
 				VariantInit(&var);
 				var.vt = VT_BSTR;
-				h2 = props->Read(L"FriendlyName", &var, 0);
+				h2 = props->Read(_T("FriendlyName"), &var, 0);
 				if (SUCCEEDED(h2)) {
 					printf("%d:%ls\n", 0, var.bstrVal);
-					strText.Format(L"%ls", var.bstrVal);
+					strText.Format(_T("%ls"), var.bstrVal);
 				}
 				SysFreeString(var.bstrVal);
 				VariantClear(&var);
@@ -425,7 +426,7 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		if (SUCCEEDED(h2)) {
 			VariantInit(&var);
 			var.vt = VT_BSTR;
-			h2 = props->Read(L"FriendlyName", &var, 0);
+			h2 = props->Read(_T("FriendlyName"), &var, 0);
 			if (SUCCEEDED(h2))
 				printf("%d:%ls\n", 0, var.bstrVal);
 			SysFreeString(var.bstrVal);
@@ -452,17 +453,18 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		return hr;
 	}
 
+	/* Check the State property */
 	DWORD supportFlags = 0;
 	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_STATE_ID, &supportFlags);
 	if (!SUCCEEDED(hr))
 	{
-		MessageBox(_T("The relevant property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("The STATE property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
 	{
-		MessageBox(_T("The relevant property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("The STATE property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -470,7 +472,30 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
 	if (!SUCCEEDED(hr))
 	{
-		MessageBox(_T("It can't get the state of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		MessageBox(_T("It can't get the STATE property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	/* Check the Process property */
+	supportFlags = 0;
+	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_PROCESS_ID, &supportFlags);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("The PROCESS property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
+	{
+		MessageBox(_T("The PROCESS property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	DWORD pid = 0;
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &pid, sizeof(DWORD), NULL);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("It can't get the PROCESS property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -578,10 +603,20 @@ void CCameraWatcherDlg::usage_proc_avshws()
 	DWORD old_state = 0;
 	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &old_state, sizeof(DWORD), NULL);
 
+	HRESULT hr = S_OK;
 	DWORD current_state = old_state;
 	while (m_notification_monitor) {
 		::Sleep(10);
-		m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &current_state, sizeof(DWORD), NULL);
+
+		if (m_propertySet == NULL) {
+			break;
+		}
+
+		hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &current_state, sizeof(DWORD), NULL);
+
+		if (!SUCCEEDED(hr)) {
+			break;
+		}
 
 		// update using information
 		if (current_state != old_state) {
@@ -596,6 +631,7 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 	if (m_propertySet == nullptr)
 		return;
 
+	// Current state
 	DWORD state = HardwareStopped;
 	m_propertySet->Get(GUID_PROP_CLASS, PROP_STATE_ID, NULL, 0, &state, sizeof(DWORD), NULL);
 
@@ -605,4 +641,12 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 
 	CString message = tt + _T("using our camera.");
 	SetDlgItemText(IDC_STATIC_VCAM_USAGE, message);
+
+	// Process id
+	DWORD pid = 0;
+	m_propertySet->Get(GUID_PROP_CLASS, PROP_PROCESS_ID, NULL, 0, &pid, sizeof(DWORD), NULL);
+
+	CString strText;
+	strText.Format(_T("%d"), pid);
+	SetDlgItemText(IDC_PROCESS_ID_EDIT, strText);
 }
