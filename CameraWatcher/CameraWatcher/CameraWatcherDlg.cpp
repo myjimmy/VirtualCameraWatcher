@@ -100,6 +100,7 @@ BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
 	ON_WM_DESTROY()
 	ON_BN_CLICKED(IDC_SET_BUTTON, &CCameraWatcherDlg::OnBnClickedSetButton)
 	ON_BN_CLICKED(IDC_SET_SESSION_BUTTON, &CCameraWatcherDlg::OnBnClickedSetSessionButton)
+	ON_BN_CLICKED(IDC_GET_SESSION_BUTTON, &CCameraWatcherDlg::OnBnClickedGetSessionButton)
 END_MESSAGE_MAP()
 
 
@@ -687,9 +688,29 @@ void CCameraWatcherDlg::OnBnClickedSetSessionButton()
 	HRESULT hr = S_OK;
 	hr = m_propertySet->Set(GUID_PROP_CLASS, PROP_SESSION_ID, NULL, 0, &sessionId, sizeof(DWORD));
 	if (SUCCEEDED(hr)) {
-		MessageBox(_T("Successfuly set the session id!"), _T("Error"), MB_OK | MB_ICONINFORMATION);
+		MessageBox(_T("Successfuly set the session id!"), _T("Message"), MB_OK | MB_ICONINFORMATION);
 	}
 	else {
 		MessageBox(_T("Failed to set the session id!"), _T("Error"), MB_OK | MB_ICONERROR);
 	}
+}
+
+void CCameraWatcherDlg::OnBnClickedGetSessionButton()
+{
+	if (m_propertySet == nullptr) {
+		MessageBox(_T("Please select the correct camera device!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	// Session id
+	HRESULT hr = S_OK;
+	DWORD sessionId = 0;
+
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_SESSION_ID, NULL, 0, &sessionId, sizeof(DWORD), NULL);
+	if (!SUCCEEDED(hr)) {
+		MessageBox(_T("Failed to get the session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+	}
+
+	SetDlgItemInt(IDC_SESSION_ID_EDIT, (UINT)sessionId);
+	MessageBox(_T("Successfuly get the session id!"), _T("Message"), MB_OK | MB_ICONINFORMATION);
 }

@@ -91,4 +91,6 @@ protected:
 	HANDLE m_thread;
 
 	IKsPropertySet* m_propertySet;
+public:
+	afx_msg void OnBnClickedGetSessionButton();
 };
