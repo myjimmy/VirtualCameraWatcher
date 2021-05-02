@@ -30,6 +30,7 @@ MIDL_DEFINE_GUID(CLSID, CLSID_VCamRenderer, 0x3D2F839E, 0x1186, 0x4FCE, 0xB7, 0x
 #define PROP_DATA_ID		0
 #define PROP_STATE_ID		1
 #define PROP_PROCESS_ID		2
+#define PROP_SESSION_ID		3
 
 const GUID GUID_PROP_CLASS = { PROP_GUID };
 
@@ -496,6 +497,21 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 	if (!SUCCEEDED(hr))
 	{
 		MessageBox(_T("It can't get the PROCESS property of the Avshws driver!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	/* Check the Session property */
+	supportFlags = 0;
+	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_SESSION_ID, &supportFlags);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("The SESSION property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
+	{
+		MessageBox(_T("The SESSION property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
