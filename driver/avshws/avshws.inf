@@ -25,7 +25,7 @@ Class=Camera
 ClassGuid={ca3e7ab9-b4c3-4ae6-8251-579ef933890f}
 Provider=%ProviderName%
 Catalogfile=avshws.cat
-DriverVer = 03/05/2021,16.34.22.786
+DriverVer = 05/03/2021,1.48.21.79
 
 [SourceDisksNames]
 1000=%cdname%,,,
