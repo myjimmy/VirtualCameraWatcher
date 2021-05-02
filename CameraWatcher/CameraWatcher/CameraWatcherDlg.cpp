@@ -676,13 +676,20 @@ void CCameraWatcherDlg::OnBnClickedSetSessionButton()
 	}
 
 	BOOL bSuccess = FALSE;
-	UINT sessionId = 0;
+	int sessionId = 0;
 
-	sessionId = GetDlgItemInt(IDC_SESSION_ID_EDIT, &bSuccess);
+	sessionId = (UINT)GetDlgItemInt(IDC_SESSION_ID_EDIT, &bSuccess);
 	if (!bSuccess) {
 		MessageBox(_T("Please input the correct session id!"), _T("Error"), MB_OK | MB_ICONERROR);
 		return;
 	}
 
-	MessageBox(_T("Successfuly set the session id!"), _T("Error"), MB_OK | MB_ICONINFORMATION);
+	HRESULT hr = S_OK;
+	hr = m_propertySet->Set(GUID_PROP_CLASS, PROP_SESSION_ID, NULL, 0, &sessionId, sizeof(DWORD));
+	if (SUCCEEDED(hr)) {
+		MessageBox(_T("Successfuly set the session id!"), _T("Error"), MB_OK | MB_ICONINFORMATION);
+	}
+	else {
+		MessageBox(_T("Failed to set the session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+	}
 }
