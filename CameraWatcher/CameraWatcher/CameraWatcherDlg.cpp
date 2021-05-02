@@ -99,6 +99,7 @@ BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
 	ON_WM_CLOSE()
 	ON_WM_DESTROY()
 	ON_BN_CLICKED(IDC_SET_BUTTON, &CCameraWatcherDlg::OnBnClickedSetButton)
+	ON_BN_CLICKED(IDC_SET_SESSION_BUTTON, &CCameraWatcherDlg::OnBnClickedSetSessionButton)
 END_MESSAGE_MAP()
 
 
@@ -665,4 +666,23 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 	CString strText;
 	strText.Format(_T("%d"), pid);
 	SetDlgItemText(IDC_PROCESS_ID_EDIT, strText);
+}
+
+void CCameraWatcherDlg::OnBnClickedSetSessionButton()
+{
+	if (m_propertySet == nullptr) {
+		MessageBox(_T("Please select the correct camera device!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	BOOL bSuccess = FALSE;
+	UINT sessionId = 0;
+
+	sessionId = GetDlgItemInt(IDC_SESSION_ID_EDIT, &bSuccess);
+	if (!bSuccess) {
+		MessageBox(_T("Please input the correct session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	MessageBox(_T("Successfuly set the session id!"), _T("Error"), MB_OK | MB_ICONINFORMATION);
 }
