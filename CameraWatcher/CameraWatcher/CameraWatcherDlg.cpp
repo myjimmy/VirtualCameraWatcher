@@ -30,6 +30,7 @@ MIDL_DEFINE_GUID(CLSID, CLSID_VCamRenderer, 0x3D2F839E, 0x1186, 0x4FCE, 0xB7, 0x
 #define PROP_DATA_ID		0
 #define PROP_STATE_ID		1
 #define PROP_PROCESS_ID		2
+#define PROP_SESSION_ID		3
 
 const GUID GUID_PROP_CLASS = { PROP_GUID };
 
@@ -98,6 +99,8 @@ BEGIN_MESSAGE_MAP(CCameraWatcherDlg, CDialogEx)
 	ON_WM_CLOSE()
 	ON_WM_DESTROY()
 	ON_BN_CLICKED(IDC_SET_BUTTON, &CCameraWatcherDlg::OnBnClickedSetButton)
+	ON_BN_CLICKED(IDC_SET_SESSION_BUTTON, &CCameraWatcherDlg::OnBnClickedSetSessionButton)
+	ON_BN_CLICKED(IDC_GET_SESSION_BUTTON, &CCameraWatcherDlg::OnBnClickedGetSessionButton)
 END_MESSAGE_MAP()
 
 
@@ -499,6 +502,21 @@ HRESULT CCameraWatcherDlg::SetupCamerasForAvshws(int camera_index)
 		return hr;
 	}
 
+	/* Check the Session property */
+	supportFlags = 0;
+	hr = m_propertySet->QuerySupported(GUID_PROP_CLASS, PROP_SESSION_ID, &supportFlags);
+	if (!SUCCEEDED(hr))
+	{
+		MessageBox(_T("The SESSION property of Avshws driver not supported!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	if ((supportFlags & KSPROPERTY_SUPPORT_SET) != KSPROPERTY_SUPPORT_SET)
+	{
+		MessageBox(_T("The SESSION property of Avshws driver not set!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
 	// create a thread to detect VCam usage.
 	if (m_propertySet) {
 		DetectCameraUsageForAvshws();
@@ -649,4 +667,50 @@ void CCameraWatcherDlg::ShowUsingInfoForAvshws()
 	CString strText;
 	strText.Format(_T("%d"), pid);
 	SetDlgItemText(IDC_PROCESS_ID_EDIT, strText);
+}
+
+void CCameraWatcherDlg::OnBnClickedSetSessionButton()
+{
+	if (m_propertySet == nullptr) {
+		MessageBox(_T("Please select the correct camera device!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	BOOL bSuccess = FALSE;
+	int sessionId = 0;
+
+	sessionId = (UINT)GetDlgItemInt(IDC_SESSION_ID_EDIT, &bSuccess);
+	if (!bSuccess) {
+		MessageBox(_T("Please input the correct session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	HRESULT hr = S_OK;
+	hr = m_propertySet->Set(GUID_PROP_CLASS, PROP_SESSION_ID, NULL, 0, &sessionId, sizeof(DWORD));
+	if (SUCCEEDED(hr)) {
+		MessageBox(_T("Successfuly set the session id!"), _T("Message"), MB_OK | MB_ICONINFORMATION);
+	}
+	else {
+		MessageBox(_T("Failed to set the session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+	}
+}
+
+void CCameraWatcherDlg::OnBnClickedGetSessionButton()
+{
+	if (m_propertySet == nullptr) {
+		MessageBox(_T("Please select the correct camera device!"), _T("Error"), MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	// Session id
+	HRESULT hr = S_OK;
+	DWORD sessionId = 0;
+
+	hr = m_propertySet->Get(GUID_PROP_CLASS, PROP_SESSION_ID, NULL, 0, &sessionId, sizeof(DWORD), NULL);
+	if (!SUCCEEDED(hr)) {
+		MessageBox(_T("Failed to get the session id!"), _T("Error"), MB_OK | MB_ICONERROR);
+	}
+
+	SetDlgItemInt(IDC_SESSION_ID_EDIT, (UINT)sessionId);
+	MessageBox(_T("Successfuly get the session id!"), _T("Message"), MB_OK | MB_ICONINFORMATION);
 }

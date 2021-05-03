@@ -13,6 +13,9 @@
 #define IDC_SET_BUTTON                  1003
 #define IDC_EDIT1                       1004
 #define IDC_PROCESS_ID_EDIT             1004
+#define IDC_SESSION_ID_EDIT             1005
+#define IDC_SET_SESSION_BUTTON          1006
+#define IDC_GET_SESSION_BUTTON          1008
 
 // Next default values for new objects
 // 

@@ -57,6 +57,7 @@ protected:
 	afx_msg void OnClose();
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedSetButton();
+	afx_msg void OnBnClickedSetSessionButton();
 	DECLARE_MESSAGE_MAP()
 
 protected:
@@ -90,4 +91,6 @@ protected:
 	HANDLE m_thread;
 
 	IKsPropertySet* m_propertySet;
+public:
+	afx_msg void OnBnClickedGetSessionButton();
 };
